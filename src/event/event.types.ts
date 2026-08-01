@@ -1,0 +1,16 @@
+export enum EventCategory {
+  CHASUNAH = 'Chasunah',
+  SHEVA_BRACHOS = 'Sheva Brachos',
+  TENOYIM = 'Tenoyim',
+  BAR_MITZVAH = 'Bar Mitzvah',
+  VOCH_NOCHT = 'Voch Nocht',
+  BRIS = 'Bris',
+  SHIDDUCH = 'Shidduch',
+  NICHUM_AVEILIM = 'Nichum Aveilim',
+  ZOCHER = 'Zocher',
+  KIDDUSH = 'Kiddush',
+  ZUCHER_VOCHNOCHT = 'Zucher-Vochnocht',
+  BAVARFEN = 'Bavarfen',
+  SHABBOS_SHEVA_BRACHOS = 'Shabbos Sheva Brachos',
+  PIDYON_HABEN = 'Pidyon Haben',
+}

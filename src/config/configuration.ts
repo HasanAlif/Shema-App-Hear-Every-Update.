@@ -18,4 +18,9 @@ export default () => ({
     pass: process.env.MAIL_PASS ?? '',
     from: process.env.MAIL_FROM ?? 'No Reply <no-reply@example.com>',
   },
+
+  admin: {
+    email: process.env.ADMIN_EMAIL,
+    password: process.env.ADMIN_PASSWORD,
+  },
 });

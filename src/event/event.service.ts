@@ -3,15 +3,17 @@ import {
   BadRequestException,
   Injectable,
   InternalServerErrorException,
+  NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import { isValidObjectId, Model } from 'mongoose';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 
 import { Event, EventDocument } from './schemas/event.schema';
 import { CreateEventDto } from './dto/create-event.dto';
 import { EVENT_CATEGORY_DTO_MAP } from './event-category-dto.map';
+import { EventCategory, EventStatus } from './event.types';
 
 @Injectable()
 export class EventService {
@@ -21,15 +23,10 @@ export class EventService {
 
   async createEvent(dto: CreateEventDto, userId: string) {
     try {
-      // ── 1. Pick the Details DTO for this category ──────────────────────
       const DetailsDto = EVENT_CATEGORY_DTO_MAP[dto.category];
 
-      // ── 2. Transform the raw details object into the category DTO ───────
-      //    Use {} when details was omitted so whitelist still runs and
-      //    unknown keys in an empty body are not stored.
       const detailsInstance = plainToInstance(DetailsDto, dto.details ?? {});
 
-      // ── 3. Validate with strict whitelist — unknown keys → 400 ──────────
       const errors = await validate(detailsInstance, {
         whitelist: true,
         forbidNonWhitelisted: true,
@@ -46,13 +43,10 @@ export class EventService {
         );
       }
 
-      // ── 4. Build the document payload ───────────────────────────────────
-      //    Save the validated instance (whitelisted, typed), not raw input.
-      //    Only set `details` when the client actually sent something so the
-      //    field stays absent (not {}) when omitted.
       const payload: Record<string, any> = {
         category: dto.category,
         createdBy: userId,
+        status: EventStatus.PENDING,
       };
 
       if (dto.details !== undefined) {
@@ -67,7 +61,6 @@ export class EventService {
         data: saved,
       };
     } catch (error) {
-      // Re-throw validation errors as-is.
       if (error instanceof BadRequestException) {
         throw error;
       }
@@ -84,5 +77,63 @@ export class EventService {
         error: err.message,
       });
     }
+  }
+
+  async listActiveEvents(category?: string) {
+    const filter: Record<string, any> = { status: EventStatus.ACTIVE };
+
+    if (category) {
+      const validCategories = Object.values(EventCategory) as string[];
+      if (!validCategories.includes(category)) {
+        throw new BadRequestException(
+          `Invalid category "${category}". Valid values: ${validCategories.join(', ')}`,
+        );
+      }
+      filter.category = category;
+    }
+
+    const events = await this.eventModel.find(filter).exec();
+
+    return {
+      success: true,
+      message: 'Active events retrieved successfully',
+      data: events,
+    };
+  }
+
+  async getSingleEvent(eventId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: Record<string, unknown>;
+  }> {
+    if (!isValidObjectId(eventId)) {
+      throw new BadRequestException('Invalid event ID format');
+    }
+
+    const event = await this.eventModel
+      .findById(eventId)
+      .populate<{
+        createdBy: { fullName: string; email?: string; picture?: string };
+      }>('createdBy', 'fullName email picture')
+      .exec();
+
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    const { createdBy, ...rest } = event.toObject();
+
+    return {
+      success: true,
+      message: 'Event retrieved successfully',
+      data: {
+        submittedBy: {
+          picture: createdBy?.picture ?? null,
+          fullName: createdBy?.fullName ?? null,
+          email: createdBy?.email ?? null,
+        },
+        ...rest,
+      },
+    };
   }
 }

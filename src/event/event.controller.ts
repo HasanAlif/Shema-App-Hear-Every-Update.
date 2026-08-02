@@ -1,4 +1,13 @@
-import { Body, Controller, Post, Request, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  Post,
+  Query,
+  Request,
+  UseGuards,
+} from '@nestjs/common';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { EventService } from './event.service';
 import { CreateEventDto } from './dto/create-event.dto';
@@ -7,11 +16,23 @@ import { CreateEventDto } from './dto/create-event.dto';
 export class EventController {
   constructor(private readonly eventService: EventService) {}
 
+  // GET /events — public, no auth required
+  @Get()
+  listActiveEvents(@Query('category') category?: string) {
+    return this.eventService.listActiveEvents(category);
+  }
+
   // POST /events — create a new event (any authenticated user)
   @UseGuards(AuthGuard)
   @Post()
   createEvent(@Body() dto: CreateEventDto, @Request() req: any) {
     const userId = req.user.sub as string;
     return this.eventService.createEvent(dto, userId);
+  }
+
+  // GET /events/:id — public, returns a single event by ID
+  @Get(':id')
+  getSingleEvent(@Param('id') id: string) {
+    return this.eventService.getSingleEvent(id);
   }
 }

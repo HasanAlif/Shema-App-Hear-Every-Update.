@@ -14,3 +14,9 @@ export enum EventCategory {
   SHABBOS_SHEVA_BRACHOS = 'Shabbos Sheva Brachos',
   PIDYON_HABEN = 'Pidyon Haben',
 }
+
+export enum EventStatus {
+  PENDING = 'Pending',
+  ACTIVE = 'Active',
+  REJECTED = 'Rejected',
+}

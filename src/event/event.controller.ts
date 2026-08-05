@@ -18,8 +18,11 @@ export class EventController {
 
   // GET /events — public, no auth required
   @Get()
-  listActiveEvents(@Query('category') category?: string) {
-    return this.eventService.listActiveEvents(category);
+  listActiveEvents(
+    @Query('category') category?: string,
+    @Query('dateRange') dateRange?: string,
+  ) {
+    return this.eventService.listActiveEvents(category, dateRange);
   }
 
   // POST /events — create a new event (any authenticated user)

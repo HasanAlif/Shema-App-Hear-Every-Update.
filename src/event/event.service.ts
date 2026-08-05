@@ -79,7 +79,7 @@ export class EventService {
     }
   }
 
-  async listActiveEvents(category?: string) {
+  async listActiveEvents(category?: string, dateRange?: string) {
     const filter: Record<string, any> = { status: EventStatus.ACTIVE };
 
     if (category) {
@@ -90,6 +90,46 @@ export class EventService {
         );
       }
       filter.category = category;
+    }
+
+    if (dateRange && dateRange !== 'all') {
+      const validRanges = ['today', 'tomorrow', 'this_week'];
+      if (!validRanges.includes(dateRange)) {
+        throw new BadRequestException(
+          `Invalid dateRange "${dateRange}". Valid values: today, tomorrow, this_week, all`,
+        );
+      }
+
+      // Helper: format a UTC date as "YYYY-MM-DD" string (matches details.date format)
+      const toDateStr = (y: number, m: number, d: number): string => {
+        const date = new Date(Date.UTC(y, m, d));
+        return date.toISOString().slice(0, 10); // "YYYY-MM-DD"
+      };
+
+      const now = new Date();
+      const utcYear = now.getUTCFullYear();
+      const utcMonth = now.getUTCMonth();
+      const utcDate = now.getUTCDate();
+      const utcDay = now.getUTCDay(); // 0 = Sunday
+
+      let startStr: string;
+      let endStr: string;
+
+      if (dateRange === 'today') {
+        startStr = toDateStr(utcYear, utcMonth, utcDate);
+        endStr = startStr;
+      } else if (dateRange === 'tomorrow') {
+        startStr = toDateStr(utcYear, utcMonth, utcDate + 1);
+        endStr = startStr;
+      } else {
+        // this_week: Monday to Sunday of the current UTC week
+        const daysFromMonday = utcDay === 0 ? 6 : utcDay - 1;
+        startStr = toDateStr(utcYear, utcMonth, utcDate - daysFromMonday);
+        endStr = toDateStr(utcYear, utcMonth, utcDate - daysFromMonday + 6);
+      }
+
+      // details.date is stored as a "YYYY-MM-DD" string — lexicographic comparison works
+      filter['details.date'] = { $gte: startStr, $lte: endStr };
     }
 
     const events = await this.eventModel.find(filter).exec();

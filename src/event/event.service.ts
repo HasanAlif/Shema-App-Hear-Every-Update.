@@ -45,6 +45,7 @@ export class EventService {
 
       const payload: Record<string, any> = {
         category: dto.category,
+        eventTitle: dto.eventTitle,
         createdBy: userId,
         status: EventStatus.PENDING,
       };
@@ -161,17 +162,21 @@ export class EventService {
       throw new NotFoundException('Event not found');
     }
 
-    const { createdBy, ...rest } = event.toObject();
+    const { createdBy, category, eventTitle, details, ...rest } =
+      event.toObject() as Record<string, any>;
 
     return {
       success: true,
       message: 'Event retrieved successfully',
       data: {
+        category,
+        eventTitle,
         submittedBy: {
           picture: createdBy?.picture ?? null,
           fullName: createdBy?.fullName ?? null,
           email: createdBy?.email ?? null,
         },
+        details,
         ...rest,
       },
     };

@@ -12,6 +12,9 @@ export class Event {
   })
   category: EventCategory;
 
+  @Prop({ type: String, required: true, trim: true })
+  eventTitle: string;
+
   // No default — field is entirely absent when client omits it.
   @Prop({ type: MongooseSchema.Types.Mixed })
   details?: Record<string, any>;

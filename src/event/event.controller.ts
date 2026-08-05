@@ -33,6 +33,12 @@ export class EventController {
     return this.eventService.createEvent(dto, userId);
   }
 
+  // GET /events/search?searchQuery=... — public, relevance-ranked search
+  @Get('search')
+  searchEventsByTitleOrCategory(@Query('searchQuery') searchQuery: string) {
+    return this.eventService.searchEventsByTitleOrCategory(searchQuery);
+  }
+
   // GET /events/:id — public, returns a single event by ID
   @Get(':id')
   getSingleEvent(@Param('id') id: string) {

@@ -181,4 +181,107 @@ export class EventService {
       },
     };
   }
+
+  async searchEventsByTitleOrCategory(searchQuery: string): Promise<{
+    success: boolean;
+    message: string;
+    data: unknown[];
+  }> {
+    if (!searchQuery || !searchQuery.trim()) {
+      throw new BadRequestException('searchQuery must not be empty');
+    }
+
+    // Escape special regex characters to prevent injection
+    const escaped = searchQuery.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    const events = await this.eventModel
+      .aggregate([
+        // Step 1: filter only Active events that match either field
+        {
+          $match: {
+            status: EventStatus.ACTIVE,
+            $or: [
+              { eventTitle: { $regex: escaped, $options: 'i' } },
+              { category: { $regex: escaped, $options: 'i' } },
+            ],
+          },
+        },
+        // Step 2: compute relevance score
+        {
+          $addFields: {
+            _score: {
+              $add: [
+                // Exact full-title match → 3 pts
+                {
+                  $cond: [
+                    {
+                      $regexMatch: {
+                        input: '$eventTitle',
+                        regex: `^${escaped}$`,
+                        options: 'i',
+                      },
+                    },
+                    3,
+                    0,
+                  ],
+                },
+                // Title starts with query → 2 pts
+                {
+                  $cond: [
+                    {
+                      $regexMatch: {
+                        input: '$eventTitle',
+                        regex: `^${escaped}`,
+                        options: 'i',
+                      },
+                    },
+                    2,
+                    0,
+                  ],
+                },
+                // Title contains query → 1 pt
+                {
+                  $cond: [
+                    {
+                      $regexMatch: {
+                        input: '$eventTitle',
+                        regex: escaped,
+                        options: 'i',
+                      },
+                    },
+                    1,
+                    0,
+                  ],
+                },
+                // Category matches → 1 pt
+                {
+                  $cond: [
+                    {
+                      $regexMatch: {
+                        input: '$category',
+                        regex: escaped,
+                        options: 'i',
+                      },
+                    },
+                    1,
+                    0,
+                  ],
+                },
+              ],
+            },
+          },
+        },
+        // Step 3: sort by score descending, then by createdAt descending as tiebreaker
+        { $sort: { _score: -1, createdAt: -1 } },
+        // Step 4: remove the internal score field from output
+        { $project: { _score: 0 } },
+      ])
+      .exec();
+
+    return {
+      success: true,
+      message: 'Events retrieved successfully',
+      data: events,
+    };
+  }
 }

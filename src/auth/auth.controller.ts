@@ -78,20 +78,11 @@ export class AuthController {
   }
 
   //-------------------------Profile----------------------
-  // GET /auth/profile — returns the authenticated user's profile
+  // GET /auth/profile — returns the authenticated user's profile with event stats
   @UseGuards(AuthGuard)
   @Get('profile')
-  async getProfile(@Request() req: any) {
+  getProfile(@Request() req: any) {
     const userId = req.user.sub as string;
-    const user = await this.userService.getUserById(userId);
-    return {
-      success: true,
-      data: {
-        id: user?._id,
-        fullName: user?.fullName,
-        email: user?.email,
-        role: user?.role,
-      },
-    };
+    return this.userService.getUserProfile(userId);
   }
 }

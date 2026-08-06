@@ -39,6 +39,12 @@ export class User {
   @Prop()
   picture?: string;
 
+  @Prop()
+  pictureId?: string;
+
+  @Prop()
+  address?: string;
+
   @Prop({ type: [String], default: [] })
   favEvents: string[];
 }

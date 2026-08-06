@@ -1,26 +1,13 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Post,
-  Request,
-  Res,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Post, Res } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { RegisterWithEmailDto } from './dto/registerUser.dto';
 import { LoginDto } from './dto/login.dto';
 import { VerifyOtpDto } from './dto/verifyOtp.dto';
 import { ResendOtpDto } from './dto/resendOtp.dto';
-import { AuthGuard } from './auth.guard';
-import { UserService } from 'src/user/user.service';
 
 @Controller('auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly userService: UserService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   //--------------- Registration----------------------
   // POST /auth/register — create user with email, send OTP, no JWT yet
@@ -75,14 +62,5 @@ export class AuthController {
   logout(@Res({ passthrough: true }) res: any) {
     res.clearCookie('accessToken');
     return { success: true, message: 'Logged out successfully' };
-  }
-
-  //-------------------------Profile----------------------
-  // GET /auth/profile — returns the authenticated user's profile with event stats
-  @UseGuards(AuthGuard)
-  @Get('profile')
-  getProfile(@Request() req: any) {
-    const userId = req.user.sub as string;
-    return this.userService.getUserProfile(userId);
   }
 }

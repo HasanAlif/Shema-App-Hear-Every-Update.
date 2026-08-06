@@ -10,12 +10,15 @@ import { Model } from 'mongoose';
 import { User } from './schemas/user.schema';
 import { Event, EventDocument } from '../event/schemas/event.schema';
 import { EventStatus } from '../event/event.types';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { CloudinaryService } from '../utils/cloudinary/cloudinary.service';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
     @InjectModel(Event.name) private eventModel: Model<EventDocument>,
+    private readonly cloudinaryService: CloudinaryService,
   ) {}
 
   async createUser(data: Partial<User>) {
@@ -91,5 +94,80 @@ export class UserService {
         approved,
       },
     };
+  }
+
+  async getProfileForUpdate(userId: string) {
+    const user = await this.userModel
+      .findById(userId)
+      .select('fullName email phoneNumber address picture')
+      .lean()
+      .exec();
+    return {
+      success: true,
+      message: 'Profile retrieved successfully',
+      data: {
+        picture: user?.picture ?? null,
+        fullName: user?.fullName ?? null,
+        phoneNumber: user?.phoneNumber ?? null,
+        address: user?.address ?? null,
+      },
+    };
+  }
+
+  async updateProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+    pictureFile?: Express.Multer.File,
+  ): Promise<{
+    success: boolean;
+    message: string;
+    data: Record<string, unknown>;
+  }> {
+    try {
+      const currentUser = await this.userModel
+        .findById(userId)
+        .select('pictureId')
+        .lean()
+        .exec();
+
+      if (!currentUser) {
+        throw new NotFoundException('User not found');
+      }
+
+      const update: Partial<User> = {};
+      if (dto.fullName !== undefined) update.fullName = dto.fullName;
+      if (dto.phoneNumber !== undefined) update.phoneNumber = dto.phoneNumber;
+      if (dto.address !== undefined) update.address = dto.address;
+
+      if (pictureFile) {
+        const { url, publicId } = await this.cloudinaryService.uploadImage(
+          pictureFile.buffer,
+          'profile-pictures',
+        );
+
+        if (currentUser.pictureId) {
+          await this.cloudinaryService.deleteImage(currentUser.pictureId);
+        }
+        update.picture = url;
+        update.pictureId = publicId;
+      }
+      const updated = await this.updateUserById(userId, update);
+
+      return {
+        success: true,
+        message: 'Profile updated successfully',
+        data: {
+          picture: updated?.picture ?? null,
+          fullName: updated?.fullName ?? null,
+          phoneNumber: updated?.phoneNumber ?? null,
+          address: updated?.address ?? null,
+        },
+      };
+    } catch (err) {
+      if ((err as { status?: number }).status) throw err;
+      throw new InternalServerErrorException(
+        (err as Error).message ?? 'Failed to update profile',
+      );
+    }
   }
 }

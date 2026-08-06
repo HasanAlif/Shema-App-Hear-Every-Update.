@@ -49,7 +49,7 @@ export class AdminService {
     const events: any[] = await this.eventModel
       .find(filter)
       .populate('createdBy')
-      .sort({ createdAt: -1 })
+      .sort({ _id: -1 })
       .exec();
 
     const data = events.map((event: any) => {
@@ -96,6 +96,7 @@ export class AdminService {
       data: {
         id: String(event._id),
         category: event.category,
+        eventTitle: event.eventTitle,
         status: event.status,
         details: event.details ?? null,
         createdAt: event.createdAt,

@@ -135,7 +135,7 @@ export class EventService {
       filter['details.date'] = { $gte: startStr, $lte: endStr };
     }
 
-    const events = await this.eventModel.find(filter).exec();
+    const events = await this.eventModel.find(filter).sort({ _id: -1 }).exec();
 
     return {
       success: true,

@@ -333,4 +333,26 @@ export class EventService {
       };
     }
   }
+
+  async getMyFavourites(userId: string): Promise<{
+    success: boolean;
+    message: string;
+    data: unknown[];
+  }> {
+    if (!isValidObjectId(userId)) {
+      throw new BadRequestException('Invalid user ID format');
+    }
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    const favEvents = await this.eventModel
+      .find({ _id: { $in: user.favEvents } })
+      .exec();
+    return {
+      success: true,
+      message: 'Favourite events retrieved successfully',
+      data: favEvents,
+    };
+  }
 }

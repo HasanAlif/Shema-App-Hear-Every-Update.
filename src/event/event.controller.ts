@@ -40,6 +40,14 @@ export class EventController {
     return this.eventService.searchEventsByTitleOrCategory(searchQuery);
   }
 
+  // GET /events/favourites — returns all events favourited by the authenticated user
+  @UseGuards(AuthGuard)
+  @Get('favourites')
+  getMyFavourites(@Request() req: any) {
+    const userId = req.user.sub as string;
+    return this.eventService.getMyFavourites(userId);
+  }
+
   // GET /events/:id — public, returns a single event by ID
   @Get(':id')
   getSingleEvent(@Param('id') id: string) {

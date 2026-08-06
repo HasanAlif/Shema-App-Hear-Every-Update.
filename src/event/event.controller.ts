@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  Patch,
   Post,
   Query,
   Request,
@@ -43,5 +44,17 @@ export class EventController {
   @Get(':id')
   getSingleEvent(@Param('id') id: string) {
     return this.eventService.getSingleEvent(id);
+  }
+
+  // PATCH /events/:id/favourite — toggle favourite (auth required)
+  @UseGuards(AuthGuard)
+  @Patch(':id/favourite')
+  makeEventFav(
+    @Param('id') eventId: string,
+    @Body('isFavourite') isFavourite: boolean,
+    @Request() req: any,
+  ) {
+    const userId = req.user.sub as string;
+    return this.eventService.makeEventFav(eventId, userId, isFavourite);
   }
 }

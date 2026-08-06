@@ -11,6 +11,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 
 import { Event, EventDocument } from './schemas/event.schema';
+import { User, UserDocument } from '../user/schemas/user.schema';
 import { CreateEventDto } from './dto/create-event.dto';
 import { EVENT_CATEGORY_DTO_MAP } from './event-category-dto.map';
 import { EventCategory, EventStatus } from './event.types';
@@ -19,6 +20,7 @@ import { EventCategory, EventStatus } from './event.types';
 export class EventService {
   constructor(
     @InjectModel(Event.name) private eventModel: Model<EventDocument>,
+    @InjectModel(User.name) private userModel: Model<UserDocument>,
   ) {}
 
   async createEvent(dto: CreateEventDto, userId: string) {
@@ -283,5 +285,52 @@ export class EventService {
       message: 'Events retrieved successfully',
       data: events,
     };
+  }
+
+  async makeEventFav(
+    eventId: string,
+    userId: string,
+    isFavourite: boolean,
+  ): Promise<{ success: boolean; message: string }> {
+    if (!isValidObjectId(eventId)) {
+      throw new BadRequestException('Invalid event ID format');
+    }
+    if (!isValidObjectId(userId)) {
+      throw new BadRequestException('Invalid user ID format');
+    }
+    const event = await this.eventModel.findById(eventId).exec();
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+    const user = await this.userModel.findById(userId).exec();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const alreadyFav = user.favEvents.includes(eventId);
+
+    if (isFavourite) {
+      if (alreadyFav) {
+        throw new BadRequestException('Event is already in favourites');
+      }
+      user.favEvents.push(eventId);
+      await user.save();
+      return {
+        success: true,
+        message: 'Event added to favourites successfully',
+      };
+    } else {
+      if (!alreadyFav) {
+        throw new BadRequestException('Event is not in favourites');
+      }
+      user.favEvents = user.favEvents.filter(
+        (id) => id.toString() !== eventId.toString(),
+      );
+      await user.save();
+      return {
+        success: true,
+        message: 'Event removed from favourites successfully',
+      };
+    }
   }
 }

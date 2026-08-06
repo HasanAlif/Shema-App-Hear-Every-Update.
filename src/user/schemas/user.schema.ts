@@ -38,6 +38,9 @@ export class User {
 
   @Prop()
   picture?: string;
+
+  @Prop({ type: [String], default: [] })
+  favEvents: string[];
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

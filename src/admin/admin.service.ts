@@ -254,4 +254,191 @@ export class AdminService {
       data: { id: String(event._id), status: newStatus },
     };
   }
+
+  // ─── Dashboard analytics ──────────────────────────────────────────────────
+
+  private readonly MONTH_LABELS = [
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ] as const;
+
+  /** Build a zeroed 12-month array then fill from aggregate results. */
+  private buildMonthlyData(
+    results: Array<{ _id: number; count: number }>,
+  ): Array<{ month: string; count: number }> {
+    const map = new Map<number, number>(results.map((r) => [r._id, r.count]));
+    return this.MONTH_LABELS.map((label, i) => ({
+      month: label,
+      count: map.get(i + 1) ?? 0,
+    }));
+  }
+
+  /** Validate and parse an optional integer query param. */
+  private parseIntParam(
+    raw: string | undefined,
+    name: string,
+    defaultValue: number,
+    min: number,
+    max?: number,
+  ): number {
+    if (raw === undefined || raw === '') return defaultValue;
+    const parsed = Number(raw);
+    if (!Number.isInteger(parsed) || parsed < min) {
+      throw new BadRequestException(
+        max !== undefined
+          ? `"${name}" must be an integer between ${min} and ${max}`
+          : `"${name}" must be an integer >= ${min}`,
+      );
+    }
+    if (max !== undefined && parsed > max) return max;
+    return parsed;
+  }
+
+  // GET /admin/dashboard/user-growth?year=YYYY
+  async getMonthlyUserGrowth(yearStr?: string): Promise<{
+    success: boolean;
+    message: string;
+    data: { year: number; months: Array<{ month: string; count: number }> };
+  }> {
+    try {
+      const year = this.parseIntParam(
+        yearStr,
+        'year',
+        new Date().getFullYear(),
+        2000,
+        new Date().getFullYear() + 10,
+      );
+
+      const results: Array<{ _id: number; count: number }> =
+        await this.userModel.aggregate([
+          {
+            $match: {
+              createdAt: {
+                $gte: new Date(`${year}-01-01T00:00:00.000Z`),
+                $lt: new Date(`${year + 1}-01-01T00:00:00.000Z`),
+              },
+            },
+          },
+          {
+            $group: {
+              _id: { $month: '$createdAt' },
+              count: { $sum: 1 },
+            },
+          },
+        ]);
+
+      return {
+        success: true,
+        message: 'Monthly user growth retrieved successfully',
+        data: { year, months: this.buildMonthlyData(results) },
+      };
+    } catch (err) {
+      if ((err as { status?: number }).status) throw err;
+      throw new InternalServerErrorException(
+        (err as Error).message ?? 'Failed to retrieve user growth data',
+      );
+    }
+  }
+
+  // GET /admin/dashboard/events-overview?year=YYYY
+  async getEventsOverview(yearStr?: string): Promise<{
+    success: boolean;
+    message: string;
+    data: { year: number; months: Array<{ month: string; count: number }> };
+  }> {
+    try {
+      const year = this.parseIntParam(
+        yearStr,
+        'year',
+        new Date().getFullYear(),
+        2000,
+        new Date().getFullYear() + 10,
+      );
+
+      const results: Array<{ _id: number; count: number }> =
+        await this.eventModel.aggregate([
+          {
+            $match: {
+              createdAt: {
+                $gte: new Date(`${year}-01-01T00:00:00.000Z`),
+                $lt: new Date(`${year + 1}-01-01T00:00:00.000Z`),
+              },
+            },
+          },
+          {
+            $group: {
+              _id: { $month: '$createdAt' },
+              count: { $sum: 1 },
+            },
+          },
+        ]);
+
+      return {
+        success: true,
+        message: 'Events overview retrieved successfully',
+        data: { year, months: this.buildMonthlyData(results) },
+      };
+    } catch (err) {
+      if ((err as { status?: number }).status) throw err;
+      throw new InternalServerErrorException(
+        (err as Error).message ?? 'Failed to retrieve events overview data',
+      );
+    }
+  }
+
+  // GET /admin/dashboard/recent-users?limit=10
+  async getRecentUsers(limitStr?: string): Promise<{
+    success: boolean;
+    message: string;
+    data: Array<Record<string, unknown>>;
+  }> {
+    try {
+      const limit = this.parseIntParam(limitStr, 'limit', 10, 1, 50);
+
+      const users: any[] = await this.userModel
+        .find()
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .lean()
+        .exec();
+
+      const data = users.map((user) => ({
+        id: String(user._id),
+        userName: user.fullName ?? '',
+        userEmail: user.email ?? '',
+        userPhoneNumber: user.phoneNumber ?? '',
+        userLocation: user.location ?? '', // same field as listEvents → userLocation
+        userPicture: user.picture ?? '',
+        joinedDate: user.createdAt
+          ? new Date(user.createdAt as Date).toLocaleDateString('en-US', {
+              month: 'short',
+              day: 'numeric',
+              year: 'numeric',
+            })
+          : '',
+        status: user.isActive ? 'Active' : 'Suspended',
+      }));
+
+      return {
+        success: true,
+        message: 'Recent users retrieved successfully',
+        data,
+      };
+    } catch (err) {
+      if ((err as { status?: number }).status) throw err;
+      throw new InternalServerErrorException(
+        (err as Error).message ?? 'Failed to retrieve recent users',
+      );
+    }
+  }
 }

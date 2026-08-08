@@ -66,4 +66,24 @@ export class AdminController {
   ) {
     return this.adminService.updateEventStatus(id, dto.status);
   }
+
+  // ─── Dashboard analytics ─────────────────────────────────────────────────
+
+  // GET /admin/dashboard/user-growth?year=YYYY
+  @Get('dashboard/user-growth')
+  getMonthlyUserGrowth(@Query('year') year?: string) {
+    return this.adminService.getMonthlyUserGrowth(year);
+  }
+
+  // GET /admin/dashboard/events-overview?year=YYYY
+  @Get('dashboard/events-overview')
+  getEventsOverview(@Query('year') year?: string) {
+    return this.adminService.getEventsOverview(year);
+  }
+
+  // GET /admin/dashboard/recent-users?limit=10
+  @Get('dashboard/recent-users')
+  getRecentUsers(@Query('limit') limit?: string) {
+    return this.adminService.getRecentUsers(limit);
+  }
 }

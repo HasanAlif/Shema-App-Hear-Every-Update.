@@ -13,6 +13,7 @@ import { memoryStorage } from 'multer';
 import { AuthGuard } from 'src/auth/auth.guard';
 import { UserService } from './user.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 
 @Controller('user')
 export class UserController {
@@ -45,5 +46,13 @@ export class UserController {
   ) {
     const userId = req.user.sub as string;
     return this.userService.updateProfile(userId, dto, picture);
+  }
+
+  // PATCH /user/change-password — change authenticated user's password
+  @UseGuards(AuthGuard)
+  @Patch('change-password')
+  changePassword(@Body() dto: ChangePasswordDto, @Request() req: any) {
+    const userId = req.user.sub as string;
+    return this.userService.changePassword(userId, dto);
   }
 }

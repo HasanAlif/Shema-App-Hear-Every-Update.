@@ -1,9 +1,11 @@
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 
@@ -11,6 +13,7 @@ import { User } from './schemas/user.schema';
 import { Event, EventDocument } from '../event/schemas/event.schema';
 import { EventStatus } from '../event/event.types';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { CloudinaryService } from '../utils/cloudinary/cloudinary.service';
 
 @Injectable()
@@ -167,6 +170,73 @@ export class UserService {
       if ((err as { status?: number }).status) throw err;
       throw new InternalServerErrorException(
         (err as Error).message ?? 'Failed to update profile',
+      );
+    }
+  }
+
+  async changePassword(
+    userId: string,
+    dto: ChangePasswordDto,
+  ): Promise<{
+    success: boolean;
+    message: string;
+  }> {
+    try {
+      // Fetch only the password field — never expose the full document
+      const currentUser = await this.userModel
+        .findById(userId)
+        .select('password')
+        .lean()
+        .exec();
+
+      if (!currentUser) {
+        throw new NotFoundException('User not found');
+      }
+
+      // Social-login users have no password set
+      if (!currentUser.password) {
+        throw new BadRequestException(
+          'This account uses social sign-in and has no password to change.',
+        );
+      }
+
+      // Verify the current (old) password
+      const isOldPasswordValid = await bcrypt.compare(
+        dto.oldPassword,
+        currentUser.password,
+      );
+
+      if (!isOldPasswordValid) {
+        throw new BadRequestException('Current password is incorrect');
+      }
+
+      // Prevent reuse of the same password
+      const isSamePassword = await bcrypt.compare(
+        dto.newPassword,
+        currentUser.password,
+      );
+
+      if (isSamePassword) {
+        throw new BadRequestException(
+          'New password must be different from the current password',
+        );
+      }
+
+      // Hash and persist — use $set to avoid touching unrelated fields
+      const hashedPassword = await bcrypt.hash(dto.newPassword, 10);
+
+      await this.userModel
+        .findByIdAndUpdate(userId, { $set: { password: hashedPassword } })
+        .exec();
+
+      return {
+        success: true,
+        message: 'Password changed successfully',
+      };
+    } catch (err) {
+      if ((err as { status?: number }).status) throw err;
+      throw new InternalServerErrorException(
+        (err as Error).message ?? 'Failed to change password',
       );
     }
   }
